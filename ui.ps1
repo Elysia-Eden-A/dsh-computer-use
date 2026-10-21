@@ -293,9 +293,11 @@ try {
       $parts = $keys.Split("+") | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
       $vks = @()
       foreach ($p in $parts) {
-        $vk = Get-Vk $p
-        if ($vk -lt 0) { Fail "unknown key: $p" }
-        $vks += $vk
+        # NB: PowerShell variables are case-insensitive, so a local named $vk would
+        # clobber the $VK lookup table. Keep this name distinct.
+        $keyCode = Get-Vk $p
+        if ($keyCode -lt 0) { Fail "unknown key: $p" }
+        $vks += $keyCode
       }
       for ($i = 0; $i -lt $vks.Count - 1; $i++) { Send-Vk $vks[$i] $true; Start-Sleep -Milliseconds 30 }
       Send-Vk $vks[$vks.Count - 1] $true

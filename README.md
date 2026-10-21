@@ -1,74 +1,63 @@
 # dsh-computer-use
 
-A **DeepSeek Harness (DSH) plugin** that gives the agent eyes and hands on a Windows desktop: screenshots, mouse, keyboard, window control — plus a small always-on-top indicator so you can see when the agent is driving.
+给 DeepSeek Harness 加一个 `computer` 工具，让 Agent 能真的看一眼屏幕、点一下鼠标。
 
-[中文说明见下方](#中文说明)
+## 起因
 
----
+Agent 平时只会跑命令、改文件。碰上"帮我把这个窗口里的按钮点掉"就卡住了——它没有眼睛，也没有手。这插件就是给它补上这两样。
 
-## What it does
+写完之后发现一个副作用：它现在会去点真实的桌面，点错了就是错了。所以又加了个提示条，至少你能看见它在动。
 
-Registers a single `computer` tool with the Host:
+## 能干什么
 
-| action | meaning |
-|---|---|
-| `screenshot` | capture the whole screen or one window to a PNG |
-| `windows` | list visible top-level windows (hwnd, title, process, rect) |
-| `focus` | bring a window to the foreground |
-| `click` / `move` / `drag` / `scroll` | mouse input at absolute screen coordinates |
-| `type` | paste text into the focused field (clipboard based, CJK safe) |
-| `key` | press a `+` chord such as `ctrl+s`, `alt+tab` |
-| `cursor` / `screen` | read pointer position / virtual screen size |
-| `wait` | sleep |
+就一个工具，十来种动作：
 
-The agent loop is: `windows` → `focus` → `screenshot` → read the image with the `read_image` tool → `click`/`type` at measured coordinates → screenshot again.
+截屏、列窗口、切到某个窗口、点、拖、滚轮、打字、按组合键、读光标位置、干等。
 
-## Requirements
+用起来没什么玄机，就是**截屏 → 看图 → 算坐标 → 点 → 再截屏确认**。笨，但管用。
 
-- Windows 10/11
-- DSH with the `plugin_manager` tool available
-- Windows PowerShell 5.1 (built in, no extra install)
+打字走的是剪贴板（复制进去再按 Ctrl+V），所以中文和 emoji 都能打，不会变成问号。
 
-## Install
+## 屏幕上那个小胶囊
 
-```powershell
-# from DSH, ask the agent:
-#   install the bundle at D:\path\to\dsh-computer-use
-```
+操作的时候，右下角会浮出一条黑色的，写着 `DeepSeek 正在操作电脑 · 输入文字`，一秒后自己淡掉。
 
-or with the `plugin_manager` tool:
+几个当时特意处理过的地方：
+
+- **点它不会挡路**：加了 `WS_EX_TRANSPARENT`，鼠标直接穿过去
+- **不抢焦点**：`WS_EX_NOACTIVATE`，不会把正在打字的窗口顶到后面
+- **能调大小**：右键托盘图标，75% 到 200%
+- **出现在截图里**：这是故意的。我截的图里如果有它，就说明那一刻我确实在操作
+
+## 装
+
+用 `plugin_manager`：
 
 ```json
 { "action": "install_bundle", "target": "D:\\path\\to\\dsh-computer-use" }
 ```
 
-The bundle adds one entry (`computer-use`) to the current profile. Toggle it with `set_bundle` if needed.
+Windows，DSH，自带的 PowerShell 5.1，没别的依赖。
 
-## The indicator
+## 不好使的地方
 
-`indicator.ps1` starts a borderless, click-through, always-on-top pill in the bottom-right corner. It fades in while a tool call runs, shows the current action, and fades out about a second later.
+这些是实测出来的，不是免责声明：
 
-- **Scale**: right-click the tray icon → 提示框大小 → 75% / 100% / 125% / 150% / 200%. The choice is stored in `%LOCALAPPDATA%\dsh-computer\hud.json`.
-- The window is `WS_EX_TRANSPARENT | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW`, so it never swallows a click and never steals focus.
-- It is deliberately captured by screenshots too — that is how the agent proves it was working.
+- **慢**。每步都要截一次图，二十步的操作要跑三五分钟，比人慢一个数量级
+- **不准**。坐标靠看图估，差几个像素是常事。拖拽调参数这种精细活基本别指望
+- **会被吞**。独占全屏的游戏、UAC 弹窗、带反作弊的程序，输入发出去没反应。工具只会老实报告"我点了"，点没点中它并不知道
+- **瞎**。没有无障碍树，纯靠像素。屏幕上没画出来的东西它一概不知
 
-## Files
+## 文件
 
 ```
-index.js          tool registration + helper process plumbing
-ui.ps1            native layer: GDI capture, user32 input, window enumeration
-indicator.ps1     the desktop pill + tray menu
-cordis.patch.yml  bundle patch
-locale/           en + zh display metadata
-icon.svg          plugin icon
+index.js          注册工具，管理子进程
+ui.ps1            原生长手：GDI 截屏、user32 输入、窗口枚举
+indicator.ps1     那个悬浮条，顺带托盘菜单
+cordis.patch.yml  bundle 声明
+locale/           中英文显示信息
+icon.svg
 ```
-
-## Notes and limits
-
-- Coordinates are **physical screen pixels**; the helper calls `SetProcessDPIAware()` so 125%/150% scaling does not shift clicks.
-- `type` goes through the clipboard and restores the previous contents, so Chinese and emoji work.
-- Fullscreen-exclusive games, UAC-elevated windows and some anti-cheat protected apps ignore synthetic input. The tool reports what it attempted; it does not detect that the input was swallowed.
-- Everything runs locally. No telemetry, no network calls.
 
 ## License
 
@@ -76,15 +65,12 @@ MIT
 
 ---
 
-## 中文说明
+## English, briefly
 
-给 **DeepSeek Harness** 用的桌面操控插件。装好之后 Agent 多一个 `computer` 工具，能截屏、点击、拖拽、滚轮、输入文字、按组合键、枚举和切换窗口。
+A DeepSeek Harness plugin that gives the agent a `computer` tool: screenshot, list/focus windows, click, drag, scroll, type, press keys.
 
-右下角会浮出一个小胶囊提示（`DeepSeek 正在操作电脑 · 输入文字`），鼠标可以穿透，不会抢焦点；右键托盘图标可以调 75%~200% 缩放。
+The loop is dumb on purpose — grab a screenshot, look at it, work out the coordinates, click, screenshot again to check. It is slow (minutes for a couple of dozen steps) and imprecise (coordinates are eyeballed from pixels, so fine drags are unreliable). Fullscreen games, UAC prompts and anti-cheat programs simply swallow synthetic input.
 
-**安装**：让 Agent 用 `plugin_manager` 的 `install_bundle`，`target` 指向本目录即可。
+A small always-on-top pill appears while a call runs, so you can see when the agent is driving. It is click-through and never takes focus, its size is adjustable from the tray menu, and it shows up in screenshots on purpose — that is the evidence that something actually happened.
 
-**已知限制**：
-- 独占全屏的游戏、UAC 提权窗口会吞掉模拟输入；
-- 每一步都要截图确认，比人慢很多；
-- 自动化精度取决于模型看图估坐标的能力，精细拖拽不靠谱。
+Windows only. MIT.
