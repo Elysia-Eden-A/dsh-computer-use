@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Computer Use",
+    "description": "Lets the agent see the screen and operate the desktop: screenshots, clicks, drags, scrolling, typing, key chords, and window listing/focusing."
+  }
+}

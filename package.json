@@ -1,0 +1,25 @@
+{
+  "name": "@local/dsh-computer-use",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Desktop control for the agent: screenshots, mouse, keyboard, and window management.",
+  "exports": {
+    ".": "./index.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "ui.ps1",
+    "indicator.ps1",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
